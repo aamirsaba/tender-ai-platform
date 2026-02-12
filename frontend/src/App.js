@@ -6,6 +6,9 @@ function App() {
   const [currentAnalysis, setCurrentAnalysis] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  // ✅ HARDCODED - THIS WILL WORK IMMEDIATELY
+  const API_URL = 'https://tender-ai-backend-yc7k.onrender.com';
+
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -16,29 +19,33 @@ function App() {
     formData.append('document', file);
 
     try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
+      console.log('Uploading to:', API_URL);
+      
+      const response = await fetch(`${API_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
       });
       
       const data = await response.json();
-      console.log('Analysis result:', data);
+      console.log('Response:', data);
       
-      setCurrentAnalysis(data.analysis);
-      
-      const newTender = {
-        id: Date.now(),
-        name: file.name,
-        date: new Date().toLocaleDateString(),
-        deadline: data.analysis.deadline || 'Not specified',
-        status: 'Analyzed'
-      };
-      
-      setTenders([newTender, ...tenders]);
+      if (data.success) {
+        setCurrentAnalysis(data.analysis);
+        
+        const newTender = {
+          id: Date.now(),
+          name: file.name,
+          date: new Date().toLocaleDateString(),
+          deadline: data.analysis.deadline,
+          status: 'Analyzed'
+        };
+        
+        setTenders([newTender, ...tenders]);
+      }
       
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error analyzing document. Make sure backend is running on port 5000');
+      console.error('Upload error:', error);
+      alert('Error analyzing document. Please check console for details.');
     } finally {
       setLoading(false);
     }
@@ -52,7 +59,7 @@ function App() {
       </header>
 
       <div className="container">
-        {/* Left Panel - Upload & Analysis */}
+        {/* Left Panel - Upload */}
         <div className="left-panel">
           <div className="upload-card">
             <h3>📤 Upload Tender Document</h3>
