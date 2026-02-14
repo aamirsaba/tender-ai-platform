@@ -631,9 +631,8 @@ const viewRequirements = async (tenderId) => {
         )}
       </div>
     </div>
-  );
+  ); }
 }
-
 
 // Main App Component
 function App() {
