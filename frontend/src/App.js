@@ -186,6 +186,43 @@ const handleCreateTender = async () => {
   }
 };
 
+// Add this function to view tender requirements
+const viewRequirements = async (tenderId) => {
+  try {
+    // Fetch requirements for this tender
+    const { data: requirements, error } = await supabase
+      .from('tender_requirements')
+      .select(`
+        *,
+        template:requirement_templates (
+          name,
+          description,
+          rule_type,
+          is_mandatory,
+          weight,
+          category:requirement_categories (name, icon)
+        )
+      `)
+      .eq('tender_id', tenderId);
+    
+    if (error) throw error;
+    
+    if (requirements && requirements.length > 0) {
+      // Show requirements in an alert for now (we'll make a modal later)
+      const reqList = requirements.map(r => 
+        `${r.template?.category?.icon || '📋'} ${r.template?.name}: ${r.status}`
+      ).join('\n');
+      
+      alert(`Requirements for this tender:\n\n${reqList}`);
+    } else {
+      alert('No requirements defined for this tender yet. Add some rules first!');
+    }
+  } catch (error) {
+    console.error('Error loading requirements:', error);
+    alert('Error loading requirements');
+  }
+};
+
   return (
     <div className="app">
       <header className="header">
@@ -506,30 +543,37 @@ const handleCreateTender = async () => {
           </button>
         </div>
       ) : (
-        tenders.map(tender => (
-          <div key={tender.id} className="tender-card">
-            <div className="tender-icon">📄</div>
-            <div className="tender-info">
-              <h4>{tender.title}</h4>
-              <p>Template: {tender.templates?.name || 'None'}</p>
-              <div className="tender-meta">
-                <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
-                <span className={`status-badge ${tender.status}`}>
-                  {tender.status}
-                </span>
-              </div>
-            </div>
-            <div className="tender-actions">
-              <button className="icon-btn">🔍</button>
-              <button className="icon-btn">✏️</button>
-              <button className="icon-btn">📋</button>
-            </div>
-          </div>
-        ))
-      )}
+        {tenders.map(tender => (
+  <div key={tender.id} className="tender-card">
+    <div className="tender-icon">📄</div>
+    <div className="tender-info">
+      <h4>{tender.title}</h4>
+      <p>Template: {tender.templates?.name || 'None'}</p>
+      <div className="tender-meta">
+        <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
+        <span className={`status-badge ${tender.status}`}>
+          {tender.status}
+        </span>
+      </div>
+    </div>
+    <div className="tender-actions">
+      {/* 🔍 Analysis Button - This will show requirements */}
+      <button 
+        className="icon-btn" 
+        onClick={() => viewRequirements(tender.id)}
+        title="View Requirements"
+      >
+        🔍
+      </button>
+      
+      {/* ✏️ Edit Button */}
+      <button className="icon-btn" title="Edit Tender">✏️</button>
+      
+      {/* 📋 Copy Button */}
+      <button className="icon-btn" title="Duplicate">📋</button>
     </div>
   </div>
-)}
+))}
 
         {/* TEAM TAB */}
         {activeTab === 'team' && (
