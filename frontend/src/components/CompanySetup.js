@@ -4,6 +4,8 @@ import { supabase } from '../lib/supabase';
 export default function CompanySetup({ onComplete }) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [primaryColor, setPrimaryColor] = useState('#667eea');
+  const [secondaryColor, setSecondaryColor] = useState('#764ba2');
   const [companyData, setCompanyData] = useState({
     name: '',
     slug: '',
@@ -29,6 +31,29 @@ export default function CompanySetup({ onComplete }) {
     return !data;
   };
 
+  const handleLogoUpload = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      // Upload logo to Supabase storage
+      const { data, error } = await supabase.storage
+        .from('company-logos')
+        .upload(`${companyData.slug}/logo.png`, file);
+
+      if (error) throw error;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('company-logos')
+        .getPublicUrl(data.path);
+
+      setCompanyData({ ...companyData, logo_url: publicUrl });
+    } catch (error) {
+      console.error('Logo upload error:', error);
+    }
+  };
+
   const handleCreateCompany = async () => {
     setLoading(true);
     
@@ -42,6 +67,13 @@ export default function CompanySetup({ onComplete }) {
           industry: companyData.industry,
           size: companyData.size,
           website: companyData.website,
+          logo_url: companyData.logo_url,
+          settings: {
+            brand_colors: {
+              primary: primaryColor,
+              secondary: secondaryColor
+            }
+          },
           subscription_tier: 'trial',
           trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
         })
