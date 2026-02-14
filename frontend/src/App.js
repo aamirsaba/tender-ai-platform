@@ -98,12 +98,12 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     file: null
   });
 
-  useEffect(() => {
-    if (company) {
-      loadTemplates();
-      loadTenders();
-    }
-  }, [company]);
+ useEffect(() => {
+  if (company) {
+    loadTemplates();
+    loadTenders();
+  }
+}, [company, loadTemplates, loadTenders]); // Add dependencies
 
   const loadTemplates = async () => {
     const { data } = await supabase
@@ -229,6 +229,7 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
           </div>
         </div>
         
+   
         {/* Navigation Tabs */}
         <div className="dashboard-tabs">
           <button 
@@ -249,6 +250,13 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
           >
             📄 Tenders
           </button>
+          {/* REQUIREMENTS BUTTON - ADDED HERE */}
+          <button 
+            className={`tab-btn ${activeTab === 'requirements' ? 'active' : ''}`}
+            onClick={() => setActiveTab('requirements')}
+          >
+            ⚙️ Requirements
+          </button>
           <button 
             className={`tab-btn ${activeTab === 'team' ? 'active' : ''}`}
             onClick={() => setActiveTab('team')}
@@ -262,7 +270,7 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
             ⚙️ Settings
           </button>
         </div>
-      </header>
+
 
       <div className="dashboard-content">
         {/* OVERVIEW TAB */}
