@@ -1,17 +1,13 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export default function CompanySetup({ onComplete }) {
-  const [step, setStep] = useState(1);
+export default function CompanySetup({ onComplete, user }) {
   const [loading, setLoading] = useState(false);
-  const [primaryColor, setPrimaryColor] = useState('#667eea');
-  const [secondaryColor, setSecondaryColor] = useState('#764ba2');
   const [companyData, setCompanyData] = useState({
     name: '',
     slug: '',
     industry: '',
-    size: '',
-    website: ''
+    size: ''
   });
 
   const generateSlug = (name) => {
@@ -31,29 +27,6 @@ export default function CompanySetup({ onComplete }) {
     return !data;
   };
 
-  const handleLogoUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-      // Upload logo to Supabase storage
-      const { data, error } = await supabase.storage
-        .from('company-logos')
-        .upload(`${companyData.slug}/logo.png`, file);
-
-      if (error) throw error;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('company-logos')
-        .getPublicUrl(data.path);
-
-      setCompanyData({ ...companyData, logo_url: publicUrl });
-    } catch (error) {
-      console.error('Logo upload error:', error);
-    }
-  };
-
   const handleCreateCompany = async () => {
     setLoading(true);
     
@@ -66,46 +39,21 @@ export default function CompanySetup({ onComplete }) {
           slug: companyData.slug,
           industry: companyData.industry,
           size: companyData.size,
-          website: companyData.website,
-          logo_url: companyData.logo_url,
-          settings: {
-            brand_colors: {
-              primary: primaryColor,
-              secondary: secondaryColor
-            }
-          },
           subscription_tier: 'trial',
-          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // 14 days
+          trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
         })
         .select()
         .single();
 
       if (companyError) throw companyError;
 
-      // 2. Get current user
-      const { data: { user } } = await supabase.auth.getUser();
-
-      // 3. Create profile as admin
+      // 2. Update user profile with company_id
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
-          id: user.id,
-          company_id: company.id,
-          email: user.email,
-          full_name: user.user_metadata?.full_name || '',
-          role: 'admin',
-          permissions: {
-            can_create_templates: true,
-            can_edit_rules: true,
-            can_invite_users: true,
-            can_view_reports: true
-          }
-        });
+        .update({ company_id: company.id })
+        .eq('id', user.id);
 
       if (profileError) throw profileError;
-
-      // 4. Create default templates
-      await createDefaultTemplates(company.id);
 
       onComplete(company);
       
@@ -117,56 +65,26 @@ export default function CompanySetup({ onComplete }) {
     }
   };
 
-  const createDefaultTemplates = async (companyId) => {
-    const defaultTemplates = [
-      {
-        company_id: companyId,
-        name: 'Standard ITT',
-        type: 'itt',
-        content: {
-          sections: [
-            { title: 'Instructions to Bidders', content: '{{company_name}} invites bids for...' },
-            { title: 'Scope of Work', content: 'The scope includes...' },
-            { title: 'Evaluation Criteria', content: 'Bids will be evaluated on...' }
-          ]
-        },
-        variables: ['company_name', 'project_name', 'deadline']
-      },
-      {
-        company_id: companyId,
-        name: 'Bid Evaluation Matrix',
-        type: 'evaluation',
-        content: {
-          criteria: [
-            { name: 'Technical', weight: 40 },
-            { name: 'Commercial', weight: 30 },
-            { name: 'ICV', weight: 20 },
-            { name: 'HSSE', weight: 10 }
-          ]
-        }
-      }
-    ];
+  return (
+    <div className="setup-container">
+      <div className="setup-card">
+        <h2>Set Up Your Company</h2>
+        <p className="setup-desc">Create your workspace to start using TenderAI</p>
 
-    await supabase.from('templates').insert(defaultTemplates);
-  };
-
-  if (step === 1) {
-    return (
-      <div className="setup-step">
-        <h2>Create Your Company</h2>
-        <p className="step-desc">Step 1: Company Information</p>
-        
         <div className="form-group">
           <label>Company Name *</label>
           <input
             type="text"
             value={companyData.name}
-            onChange={(e) => {
+            onChange={async (e) => {
               const name = e.target.value;
+              const slug = generateSlug(name);
+              const available = await checkSlugAvailability(slug);
               setCompanyData({
                 ...companyData,
                 name,
-                slug: generateSlug(name)
+                slug,
+                slugAvailable: available
               });
             }}
             placeholder="e.g., Oman LNG"
@@ -208,13 +126,10 @@ export default function CompanySetup({ onComplete }) {
               value={companyData.industry}
               onChange={(e) => setCompanyData({...companyData, industry: e.target.value})}
             >
-              <option value="">Select industry</option>
+              <option value="">Select</option>
               <option value="oil-gas">Oil & Gas</option>
               <option value="construction">Construction</option>
               <option value="technology">Technology</option>
-              <option value="healthcare">Healthcare</option>
-              <option value="government">Government</option>
-              <option value="other">Other</option>
             </select>
           </div>
 
@@ -224,92 +139,23 @@ export default function CompanySetup({ onComplete }) {
               value={companyData.size}
               onChange={(e) => setCompanyData({...companyData, size: e.target.value})}
             >
-              <option value="">Select size</option>
-              <option value="1-10">1-10 employees</option>
-              <option value="11-50">11-50 employees</option>
-              <option value="51-200">51-200 employees</option>
-              <option value="200+">200+ employees</option>
+              <option value="">Select</option>
+              <option value="1-10">1-10</option>
+              <option value="11-50">11-50</option>
+              <option value="51-200">51-200</option>
+              <option value="200+">200+</option>
             </select>
           </div>
         </div>
 
-        <div className="form-group">
-          <label>Website (optional)</label>
-          <input
-            type="url"
-            value={companyData.website}
-            onChange={(e) => setCompanyData({...companyData, website: e.target.value})}
-            placeholder="https://yourcompany.com"
-          />
-        </div>
-
         <button 
-          className="next-btn"
-          onClick={() => setStep(2)}
-          disabled={!companyData.name || !companyData.slug || !companyData.slugAvailable}
+          className="create-btn"
+          onClick={handleCreateCompany}
+          disabled={loading || !companyData.name || !companyData.slug || !companyData.slugAvailable}
         >
-          Next: Branding →
+          {loading ? 'Creating...' : '🚀 Create Workspace'}
         </button>
       </div>
-    );
-  }
-
-  if (step === 2) {
-    return (
-      <div className="setup-step">
-        <h2>Brand Your Workspace</h2>
-        <p className="step-desc">Step 2: Customize your company's look</p>
-
-        <div className="branding-preview">
-          <div 
-            className="preview-card"
-            style={{
-              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`
-            }}
-          >
-            <h3>{companyData.name}</h3>
-            <p>tenderai.com/{companyData.slug}</p>
-          </div>
-        </div>
-
-        <div className="color-pickers">
-          <div className="color-input">
-            <label>Primary Color</label>
-            <input
-              type="color"
-              value={primaryColor}
-              onChange={(e) => setPrimaryColor(e.target.value)}
-            />
-          </div>
-          <div className="color-input">
-            <label>Secondary Color</label>
-            <input
-              type="color"
-              value={secondaryColor}
-              onChange={(e) => setSecondaryColor(e.target.value)}
-            />
-          </div>
-        </div>
-
-        <div className="logo-upload">
-          <label>Company Logo</label>
-          <div className="upload-area">
-            <input type="file" accept="image/*" onChange={handleLogoUpload} />
-            <p>Drag & drop or click to upload</p>
-          </div>
-        </div>
-
-        <div className="button-group">
-          <button className="back-btn" onClick={() => setStep(1)}>← Back</button>
-          <button 
-            className="create-btn"
-            onClick={handleCreateCompany}
-            disabled={loading}
-          >
-            {loading ? 'Creating...' : '🚀 Launch My Company'}
-          </button>
-        </div>
-      </div>
-    );
-  }
+    </div>
+  );
 }

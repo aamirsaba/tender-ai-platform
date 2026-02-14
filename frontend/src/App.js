@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
+import CompanySetup from './components/CompanySetup';
 import './App.css';
 
-// Simple Auth Component
 function SimpleAuth({ onLogin }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -15,7 +15,16 @@ function SimpleAuth({ onLogin }) {
           email, password
         });
         if (error) throw error;
-        alert('Check your email for confirmation!');
+        
+        // Create profile for new user
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: email,
+          role: 'admin'
+        });
+        
+        alert('Account created! Please sign in.');
+        setIsSignUp(false);
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email, password
@@ -64,49 +73,15 @@ function SimpleAuth({ onLogin }) {
   );
 }
 
-// Main App Component
-function App() {
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Check current session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setLoading(false);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (loading) {
-    return <div className="loading">Loading...</div>;
-  }
-
-  if (!session) {
-    return <SimpleAuth onLogin={setSession} />;
-  }
-
+function Dashboard({ user, company, onLogout }) {
   return (
     <div className="app">
       <header className="header">
         <div className="header-content">
-          <h1>🚀 TenderAI</h1>
+          <h1>🚀 {company ? company.name : 'TenderAI'}</h1>
           <div className="user-info">
-            <span>Welcome, {session.user.email}</span>
-            <button 
-              onClick={() => supabase.auth.signOut()}
-              className="logout-btn"
-            >
-              Logout
-            </button>
+            <span>Welcome, {user.email}</span>
+            <button onClick={onLogout} className="logout-btn">Logout</button>
           </div>
         </div>
       </header>
@@ -116,12 +91,105 @@ function App() {
         <p>You're successfully logged in! Next steps:</p>
         <ul className="next-steps">
           <li>✅ Authentication working</li>
-          <li>⬜ Set up company profile</li>
+          <li>{company ? '✅' : '⬜'} Set up company profile</li>
           <li>⬜ Upload templates</li>
           <li>⬜ Analyze tenders</li>
         </ul>
+
+        {!company && (
+          <div className="setup-prompt">
+            <p>You haven't created a company yet.</p>
+            <button onClick={() => window.location.reload()}>
+              Set Up Company
+            </button>
+          </div>
+        )}
       </div>
     </div>
+  );
+}
+
+function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [showSetup, setShowSetup] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) loadUserProfile(session.user);
+      else setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session) await loadUserProfile(session.user);
+        else {
+          setProfile(null);
+          setCompany(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadUserProfile = async (user) => {
+    setLoading(true);
+    
+    // Get profile with company
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        companies (*)
+      `)
+      .eq('id', user.id)
+      .single();
+    
+    if (profile) {
+      setProfile(profile);
+      setCompany(profile.companies);
+      
+      // If user has no company, show setup
+      if (!profile.companies) {
+        setShowSetup(true);
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (!session) {
+    return <SimpleAuth onLogin={setSession} />;
+  }
+
+  if (showSetup) {
+    return (
+      <CompanySetup 
+        user={session.user} 
+        onComplete={(newCompany) => {
+          setCompany(newCompany);
+          setShowSetup(false);
+        }}
+      />
+    );
+  }
+
+  return (
+    <Dashboard 
+      user={session.user} 
+      company={company}
+      onLogout={() => supabase.auth.signOut()}
+    />
   );
 }
 
