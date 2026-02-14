@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import CompanySetup from './components/CompanySetup'; // <-- ADD THIS LINE
+import CompanySetup from './components/CompanySetup';
 import './App.css';
 
-// ... rest of your code
 // Simple Auth Component
 function SimpleAuth({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -75,7 +74,7 @@ function SimpleAuth({ onLogin }) {
   );
 }
 
-// Dashboard Component (YOUR CODE)
+// Dashboard Component
 function Dashboard({ user, company, onLogout, onSetupClick }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [templates, setTemplates] = useState([]);
@@ -88,24 +87,23 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     variables: []
   });
 
-// Tender states - ADD THESE
-const [tenders, setTenders] = useState([]);
-const [showTenderForm, setShowTenderForm] = useState(false);
-const [uploading, setUploading] = useState(false);
-const [newTender, setNewTender] = useState({
-  title: '',
-  template_id: '',
-  deadline: '',
-  file: null
-});
+  // Tender states
+  const [tenders, setTenders] = useState([]);
+  const [showTenderForm, setShowTenderForm] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [newTender, setNewTender] = useState({
+    title: '',
+    template_id: '',
+    deadline: '',
+    file: null
+  });
 
- useEffect(() => {
-  if (company) {
-    loadTemplates();
-    loadTenders(); // 👈 ADD THIS LINE
-  }
-}, [company]);
-
+  useEffect(() => {
+    if (company) {
+      loadTemplates();
+      loadTenders();
+    }
+  }, [company]);
 
   const loadTemplates = async () => {
     const { data } = await supabase
@@ -117,16 +115,15 @@ const [newTender, setNewTender] = useState({
     setTemplates(data || []);
   };
 
-// Add this function AFTER loadTemplates
-const loadTenders = async () => {
-  const { data } = await supabase
-    .from('tenders')
-    .select('*, templates(name)')
-    .eq('company_id', company.id)
-    .order('created_at', { ascending: false });
-  
-  setTenders(data || []);
-};
+  const loadTenders = async () => {
+    const { data } = await supabase
+      .from('tenders')
+      .select('*, templates(name)')
+      .eq('company_id', company.id)
+      .order('created_at', { ascending: false });
+    
+    setTenders(data || []);
+  };
 
   const handleCreateTemplate = async () => {
     const { error } = await supabase
@@ -149,79 +146,74 @@ const loadTenders = async () => {
     }
   };
 
-// Add this AFTER handleCreateTemplate
-const handleFileUpload = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  
-  setNewTender({...newTender, file, title: file.name});
-};
+  const handleFileUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    setNewTender({...newTender, file, title: file.name});
+  };
 
-// Add this AFTER handleFileUpload
-const handleCreateTender = async () => {
-  setUploading(true);
-  
-  try {
-    const { error } = await supabase
-      .from('tenders')
-      .insert({
-        company_id: company.id,
-        template_id: newTender.template_id || null,
-        title: newTender.title,
-        filename: newTender.file?.name,
-        deadline: newTender.deadline,
-        status: 'draft'
-      });
+  const handleCreateTender = async () => {
+    setUploading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('tenders')
+        .insert({
+          company_id: company.id,
+          template_id: newTender.template_id || null,
+          title: newTender.title,
+          filename: newTender.file?.name,
+          deadline: newTender.deadline,
+          status: 'draft'
+        });
 
-    if (error) throw error;
-    
-    setShowTenderForm(false);
-    setNewTender({ title: '', template_id: '', deadline: '', file: null });
-    loadTenders();
-    
-  } catch (error) {
-    alert('Error creating tender: ' + error.message);
-  } finally {
-    setUploading(false);
-  }
-};
-
-// Add this function to view tender requirements
-const viewRequirements = async (tenderId) => {
-  try {
-    // Fetch requirements for this tender
-    const { data: requirements, error } = await supabase
-      .from('tender_requirements')
-      .select(`
-        *,
-        template:requirement_templates (
-          name,
-          description,
-          rule_type,
-          is_mandatory,
-          weight,
-          category:requirement_categories (name, icon)
-        )
-      `)
-      .eq('tender_id', tenderId);
-    
-    if (error) throw error;
-    
-    if (requirements && requirements.length > 0) {
-      // Show requirements in an alert for now (we'll make a modal later)
-      const reqList = requirements.map(r => 
-        `${r.template?.category?.icon || '📋'} ${r.template?.name}: ${r.status}`
-      ).join('\n');
+      if (error) throw error;
       
-      alert(`Requirements for this tender:\n\n${reqList}`);
-    } else {
-      alert('No requirements defined for this tender yet. Add some rules first!');
+      setShowTenderForm(false);
+      setNewTender({ title: '', template_id: '', deadline: '', file: null });
+      loadTenders();
+      
+    } catch (error) {
+      alert('Error creating tender: ' + error.message);
+    } finally {
+      setUploading(false);
     }
-  } catch (error) {
-    console.error('Error loading requirements:', error);
-    alert('Error loading requirements');
-  }
-};
+  };
+
+  const viewRequirements = async (tenderId) => {
+    try {
+      const { data: requirements, error } = await supabase
+        .from('tender_requirements')
+        .select(`
+          *,
+          template:requirement_templates (
+            name,
+            description,
+            rule_type,
+            is_mandatory,
+            weight,
+            category:requirement_categories (name, icon)
+          )
+        `)
+        .eq('tender_id', tenderId);
+      
+      if (error) throw error;
+      
+      if (requirements && requirements.length > 0) {
+        const reqList = requirements.map(r => 
+          `${r.template?.category?.icon || '📋'} ${r.template?.name}: ${r.status}`
+        ).join('\n');
+        
+        alert(`Requirements for this tender:\n\n${reqList}`);
+      } else {
+        alert('No requirements defined for this tender yet. Add some rules first!');
+      }
+    } catch (error) {
+      console.error('Error loading requirements:', error);
+      alert('Error loading requirements');
+    }
+  };
 
   return (
     <div className="app">
@@ -289,7 +281,7 @@ const viewRequirements = async (tenderId) => {
               <div className="stat-card">
                 <div className="stat-icon">📄</div>
                 <div className="stat-details">
-                  <h3>0</h3>
+                  <h3>{tenders.length}</h3>
                   <p>Tenders</p>
                 </div>
               </div>
@@ -315,7 +307,7 @@ const viewRequirements = async (tenderId) => {
                 <button onClick={() => setActiveTab('templates')} className="action-btn">
                   ➕ Create Template
                 </button>
-                <button className="action-btn">
+                <button onClick={() => setActiveTab('tenders')} className="action-btn">
                   📤 Upload Tender
                 </button>
                 <button className="action-btn">
@@ -448,128 +440,131 @@ const viewRequirements = async (tenderId) => {
           </div>
         )}
 
-  {/* TENDERS TAB */}
-{activeTab === 'tenders' && (
-  <div className="tenders-tab">
-    <div className="tab-header">
-      <h2>📄 Tender Documents</h2>
-      <button 
-        className="create-btn"
-        onClick={() => setShowTenderForm(true)}
-      >
-        + Upload Tender
-      </button>
-    </div>
+        {/* TENDERS TAB */}
+        {activeTab === 'tenders' && (
+          <div className="tenders-tab">
+            <div className="tab-header">
+              <h2>📄 Tender Documents</h2>
+              <button 
+                className="create-btn"
+                onClick={() => setShowTenderForm(true)}
+              >
+                + Upload Tender
+              </button>
+            </div>
 
-    {showTenderForm && (
-      <div className="tender-form-modal">
-        <div className="modal-content">
-          <h3>Upload New Tender</h3>
-          
-          <div className="form-group">
-            <label>Tender Title</label>
-            <input
-              type="text"
-              value={newTender.title}
-              onChange={(e) => setNewTender({...newTender, title: e.target.value})}
-              placeholder="e.g., Construction Project Tender 2024"
-            />
-          </div>
+            {showTenderForm && (
+              <div className="tender-form-modal">
+                <div className="modal-content">
+                  <h3>Upload New Tender</h3>
+                  
+                  <div className="form-group">
+                    <label>Tender Title</label>
+                    <input
+                      type="text"
+                      value={newTender.title}
+                      onChange={(e) => setNewTender({...newTender, title: e.target.value})}
+                      placeholder="e.g., Construction Project Tender 2024"
+                    />
+                  </div>
 
-          <div className="form-group">
-            <label>Template (Optional)</label>
-            <select
-              value={newTender.template_id}
-              onChange={(e) => setNewTender({...newTender, template_id: e.target.value})}
-            >
-              <option value="">Select template</option>
-              {templates.map(t => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
-          </div>
+                  <div className="form-group">
+                    <label>Template (Optional)</label>
+                    <select
+                      value={newTender.template_id}
+                      onChange={(e) => setNewTender({...newTender, template_id: e.target.value})}
+                    >
+                      <option value="">Select template</option>
+                      {templates.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
 
-          <div className="form-group">
-            <label>Deadline</label>
-            <input
-              type="date"
-              value={newTender.deadline}
-              onChange={(e) => setNewTender({...newTender, deadline: e.target.value})}
-            />
-          </div>
+                  <div className="form-group">
+                    <label>Deadline</label>
+                    <input
+                      type="date"
+                      value={newTender.deadline}
+                      onChange={(e) => setNewTender({...newTender, deadline: e.target.value})}
+                    />
+                  </div>
 
-          <div className="form-group">
-            <label>Document</label>
-            <div className="file-upload-area">
-              <input
-                type="file"
-                accept=".pdf,.doc,.docx"
-                onChange={handleFileUpload}
-                id="tender-file"
-              />
-              <label htmlFor="tender-file" className="file-label">
-                {newTender.file ? newTender.file.name : 'Choose File'}
-              </label>
+                  <div className="form-group">
+                    <label>Document</label>
+                    <div className="file-upload-area">
+                      <input
+                        type="file"
+                        accept=".pdf,.doc,.docx"
+                        onChange={handleFileUpload}
+                        id="tender-file"
+                      />
+                      <label htmlFor="tender-file" className="file-label">
+                        {newTender.file ? newTender.file.name : 'Choose File'}
+                      </label>
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="cancel-btn" onClick={() => setShowTenderForm(false)}>
+                      Cancel
+                    </button>
+                    <button 
+                      className="save-btn"
+                      onClick={handleCreateTender}
+                      disabled={uploading || !newTender.title}
+                    >
+                      {uploading ? 'Uploading...' : 'Upload Tender'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="tenders-grid">
+              {tenders.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📄</div>
+                  <h3>No tenders yet</h3>
+                  <p>Upload your first tender document to get started</p>
+                  <button 
+                    className="create-first-btn"
+                    onClick={() => setShowTenderForm(true)}
+                  >
+                    Upload Tender
+                  </button>
+                </div>
+              ) : (
+                tenders.map(tender => (
+                  <div key={tender.id} className="tender-card">
+                    <div className="tender-icon">📄</div>
+                    <div className="tender-info">
+                      <h4>{tender.title}</h4>
+                      <p>Template: {tender.templates?.name || 'None'}</p>
+                      <div className="tender-meta">
+                        <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
+                        <span className={`status-badge ${tender.status}`}>
+                          {tender.status}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="tender-actions">
+                      <button 
+                        className="icon-btn" 
+                        onClick={() => viewRequirements(tender.id)}
+                        title="View Requirements"
+                      >
+                        🔍
+                      </button>
+                      <button className="icon-btn" title="Edit Tender">✏️</button>
+                      <button className="icon-btn" title="Duplicate">📋</button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-
-          <div className="form-actions">
-            <button className="cancel-btn" onClick={() => setShowTenderForm(false)}>
-              Cancel
-            </button>
-            <button 
-              className="save-btn"
-              onClick={handleCreateTender}
-              disabled={uploading || !newTender.title}
-            >
-              {uploading ? 'Uploading...' : 'Upload Tender'}
-            </button>
-          </div>
-        </div>
-      </div>
-    )}
-
-    <div className="tenders-grid">
-      {tenders.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon">📄</div>
-          <h3>No tenders yet</h3>
-          <p>Upload your first tender document to get started</p>
-          <button 
-            className="create-first-btn"
-            onClick={() => setShowTenderForm(true)}
-          >
-            Upload Tender
-          </button>
-        </div>
-  ) : (
-  tenders.map(tender => (
-  <div key={tender.id} className="tender-card">
-    <div className="tender-icon">📄</div>
-    <div className="tender-info">
-      <h4>{tender.title}</h4>
-      <p>Template: {tender.templates?.name || 'None'}</p>
-      <div className="tender-meta">
-        <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
-        <span className={`status-badge ${tender.status}`}>
-          {tender.status}
-        </span>
-      </div>
-    </div>
-    <div className="tender-actions">
-      <button 
-        className="icon-btn" 
-        onClick={() => viewRequirements(tender.id)}
-        title="View Requirements"
-      >
-        🔍
-      </button>
-      <button className="icon-btn" title="Edit Tender">✏️</button>
-      <button className="icon-btn" title="Duplicate">📋</button>
-    </div>
-  </div>
-))
-)}
+        )}
 
         {/* TEAM TAB */}
         {activeTab === 'team' && (
@@ -625,14 +620,14 @@ const viewRequirements = async (tenderId) => {
                   <p>Expires: {new Date(company?.trial_ends_at).toLocaleDateString()}</p>
                 </div>
                 <button className="upgrade-btn">Upgrade Plan</button>
-          </div>
+              </div>
+            </div>
           </div>
         )}
       </div>
     </div>
-  ); // 👈 Make sure this is exactly here - closing the return
-} // 👈 Dashboard component ends here - one brace only
-
+  );
+}
 
 // Main App Component
 function App() {
@@ -722,7 +717,7 @@ function App() {
     );
   }
 
- return (
+  return (
     <Dashboard 
       user={session.user} 
       company={company}
@@ -730,6 +725,6 @@ function App() {
       onSetupClick={handleSetupClick}
     />
   );
-} // <-- THIS BRACE WAS MISSING!
+}
 
 export default App;
