@@ -625,14 +625,14 @@ const viewRequirements = async (tenderId) => {
                   <p>Expires: {new Date(company?.trial_ends_at).toLocaleDateString()}</p>
                 </div>
                 <button className="upgrade-btn">Upgrade Plan</button>
-              </div>
-            </div>
+          </div>
           </div>
         )}
       </div>
     </div>
-  ); }
-}
+  ); // 👈 Make sure this is exactly here - closing the return
+} // 👈 Dashboard component ends here - one brace only
+
 
 // Main App Component
 function App() {
