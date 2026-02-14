@@ -1,3 +1,79 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from './lib/supabase';
+import './App.css';
+
+// Simple Auth Component
+function SimpleAuth({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+
+  const handleAuth = async () => {
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email, password
+        });
+        if (error) throw error;
+        
+        // Create profile for new user
+        await supabase.from('profiles').insert({
+          id: data.user.id,
+          email: email,
+          role: 'admin'
+        });
+        
+        alert('Account created! Please sign in.');
+        setIsSignUp(false);
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email, password
+        });
+        if (error) throw error;
+        onLogin(data.session);
+      }
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  return (
+    <div className="auth-container">
+      <div className="auth-card">
+        <h2>🚀 TenderAI</h2>
+        <h3>{isSignUp ? 'Create Account' : 'Sign In'}</h3>
+        
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className="auth-input"
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          className="auth-input"
+        />
+        
+        <button onClick={handleAuth} className="auth-button">
+          {isSignUp ? 'Sign Up' : 'Sign In'}
+        </button>
+        
+        <button 
+          onClick={() => setIsSignUp(!isSignUp)}
+          className="toggle-btn"
+        >
+          {isSignUp ? 'Already have account? Sign In' : 'Need account? Sign Up'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Dashboard Component (YOUR CODE)
 function Dashboard({ user, company, onLogout, onSetupClick }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [templates, setTemplates] = useState([]);
@@ -349,3 +425,104 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     </div>
   );
 }
+
+// Main App Component
+function App() {
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState(null);
+  const [company, setCompany] = useState(null);
+  const [showSetup, setShowSetup] = useState(false);
+
+  useEffect(() => {
+    checkUser();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        setSession(session);
+        if (session) {
+          await loadUserProfile(session.user);
+        } else {
+          setProfile(null);
+          setCompany(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+    if (session) {
+      await loadUserProfile(session.user);
+    } else {
+      setLoading(false);
+    }
+  };
+
+  const loadUserProfile = async (user) => {
+    setLoading(true);
+    
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select(`
+        *,
+        companies (*)
+      `)
+      .eq('id', user.id)
+      .maybeSingle();
+    
+    if (profile) {
+      setProfile(profile);
+      setCompany(profile.companies);
+      
+      // If user has no company, show setup
+      if (!profile.companies) {
+        setShowSetup(true);
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  const handleSetupClick = () => {
+    setShowSetup(true);
+  };
+
+  const handleSetupComplete = (newCompany) => {
+    setCompany(newCompany);
+    setShowSetup(false);
+  };
+
+  if (loading) {
+    return <div className="loading">Loading...</div>;
+  }
+
+  if (!session) {
+    return <SimpleAuth onLogin={setSession} />;
+  }
+
+  if (showSetup) {
+    return (
+      <CompanySetup 
+        user={session.user} 
+        onComplete={handleSetupComplete}
+      />
+    );
+  }
+
+  return (
+    <Dashboard 
+      user={session.user} 
+      company={company}
+      onLogout={() => supabase.auth.signOut()}
+      onSetupClick={handleSetupClick}
+    />
+  );
+}
+
+// ✅ THIS IS THE CRITICAL LINE YOU WERE MISSING!
+export default App;
