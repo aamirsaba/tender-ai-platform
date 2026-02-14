@@ -87,6 +87,26 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     variables: []
   });
 
+// Category and Requirement states
+const [categories, setCategories] = useState([]);
+const [requirements, setRequirements] = useState([]);
+const [showCategoryForm, setShowCategoryForm] = useState(false);
+const [showRequirementForm, setShowRequirementForm] = useState(false);
+const [newCategory, setNewCategory] = useState({
+  name: '',
+  icon: '📋',
+  color: '#667eea'
+});
+const [newRequirement, setNewRequirement] = useState({
+  category_id: '',
+  name: '',
+  description: '',
+  rule_type: 'text',
+  is_mandatory: true,
+  weight: 1
+});
+
+
   // Tender states
   const [tenders, setTenders] = useState([]);
   const [showTenderForm, setShowTenderForm] = useState(false);
@@ -98,12 +118,15 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     file: null
   });
 
-  useEffect(() => {
-    if (company) {
-      loadTemplates();
-      loadTenders();
-    }
-  }, [company]);
+useEffect(() => {
+  if (company) {
+    loadTemplates();
+    loadTenders();
+    loadCategories();    // ADD THIS
+    loadRequirements();  // ADD THIS
+  }
+}, [company]);
+
 
   const loadTemplates = async () => {
     const { data } = await supabase
@@ -113,6 +136,26 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
       .order('created_at', { ascending: false });
     
     setTemplates(data || []);
+  };
+  
+// ADD THESE NEW FUNCTIONS HERE:
+  const loadCategories = async () => {
+    const { data } = await supabase
+      .from('requirement_categories')
+      .select('*')
+      .eq('company_id', company.id)
+      .order('sort_order');
+    
+    setCategories(data || []);
+  };
+
+  const loadRequirements = async () => {
+    const { data } = await supabase
+      .from('requirement_templates')
+      .select('*, category:requirement_categories(name, icon)')
+      .eq('company_id', company.id);
+    
+    setRequirements(data || []);
   };
 
   const loadTenders = async () => {
@@ -446,34 +489,272 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
           </div>
         )}
 
-        {/* REQUIREMENTS TAB */}
+                {/* REQUIREMENTS TAB */}
         {activeTab === 'requirements' && (
           <div className="requirements-tab">
             <div className="tab-header">
               <h2>⚙️ Requirement Categories</h2>
-              <button className="create-btn">+ New Category</button>
+              <button 
+                className="create-btn"
+                onClick={() => setShowCategoryForm(true)}
+              >
+                + New Category
+              </button>
             </div>
 
-            <div className="categories-grid">
-              <div className="empty-state">
-                <div className="empty-icon">📋</div>
-                <h3>No categories yet</h3>
-                <p>Create requirement categories to organize your rules (e.g., Technical, Commercial, HSSE, ICV)</p>
-                <button className="create-first-btn">Create Category</button>
+            {/* Category Form Modal */}
+            {showCategoryForm && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h3>Create Category</h3>
+                  
+                  <div className="form-group">
+                    <label>Category Name</label>
+                    <input
+                      type="text"
+                      value={newCategory.name}
+                      onChange={(e) => setNewCategory({...newCategory, name: e.target.value})}
+                      placeholder="e.g., Technical Requirements"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Icon</label>
+                    <div className="icon-picker">
+                      {['📋', '💰', '🛡️', '🌍', '⚙️', '🔧', '📊', '✅'].map(icon => (
+                        <button
+                          key={icon}
+                          className={`icon-option ${newCategory.icon === icon ? 'selected' : ''}`}
+                          onClick={() => setNewCategory({...newCategory, icon})}
+                        >
+                          {icon}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Color</label>
+                    <input
+                      type="color"
+                      value={newCategory.color}
+                      onChange={(e) => setNewCategory({...newCategory, color: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="cancel-btn" onClick={() => setShowCategoryForm(false)}>
+                      Cancel
+                    </button>
+                    <button 
+                      className="save-btn"
+                      onClick={async () => {
+                        await supabase
+                          .from('requirement_categories')
+                          .insert({
+                            company_id: company.id,
+                            name: newCategory.name,
+                            icon: newCategory.icon,
+                            color: newCategory.color
+                          });
+                        setShowCategoryForm(false);
+                        setNewCategory({ name: '', icon: '📋', color: '#667eea' });
+                        loadCategories();
+                      }}
+                      disabled={!newCategory.name}
+                    >
+                      Create Category
+                    </button>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Categories Grid */}
+            <div className="categories-grid">
+              {categories.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">📋</div>
+                  <h3>No categories yet</h3>
+                  <p>Create requirement categories to organize your rules</p>
+                  <button 
+                    className="create-first-btn"
+                    onClick={() => setShowCategoryForm(true)}
+                  >
+                    Create Category
+                  </button>
+                </div>
+              ) : (
+                categories.map(category => (
+                  <div key={category.id} className="category-card" style={{ borderTop: `4px solid ${category.color}` }}>
+                    <div className="category-header">
+                      <span className="category-icon">{category.icon}</span>
+                      <h3>{category.name}</h3>
+                    </div>
+                    <div className="category-stats">
+                      {requirements.filter(r => r.category_id === category.id).length} requirements
+                    </div>
+                    <div className="category-actions">
+                      <button className="icon-btn">✏️</button>
+                      <button className="icon-btn">🗑️</button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="tab-header" style={{ marginTop: '40px' }}>
               <h2>📋 Requirement Templates</h2>
-              <button className="create-btn">+ New Requirement</button>
+              <button 
+                className="create-btn"
+                onClick={() => setShowRequirementForm(true)}
+                disabled={categories.length === 0}
+              >
+                + New Requirement
+              </button>
+              {categories.length === 0 && (
+                <small className="hint">Create a category first</small>
+              )}
             </div>
 
-            <div className="requirements-grid">
-              <div className="empty-state">
-                <div className="empty-icon">⚙️</div>
-                <h3>No requirements yet</h3>
-                <p>Create requirements that bidders must comply with</p>
+            {/* Requirement Form Modal */}
+            {showRequirementForm && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h3>Create Requirement</h3>
+                  
+                  <div className="form-group">
+                    <label>Category</label>
+                    <select
+                      value={newRequirement.category_id}
+                      onChange={(e) => setNewRequirement({...newRequirement, category_id: e.target.value})}
+                    >
+                      <option value="">Select category</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Requirement Name</label>
+                    <input
+                      type="text"
+                      value={newRequirement.name}
+                      onChange={(e) => setNewRequirement({...newRequirement, name: e.target.value})}
+                      placeholder="e.g., ISO 9001 Certification"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={newRequirement.description}
+                      onChange={(e) => setNewRequirement({...newRequirement, description: e.target.value})}
+                      placeholder="Describe what needs to be checked"
+                      rows="3"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Rule Type</label>
+                    <select
+                      value={newRequirement.rule_type}
+                      onChange={(e) => setNewRequirement({...newRequirement, rule_type: e.target.value})}
+                    >
+                      <option value="text">Text/Description</option>
+                      <option value="boolean">Yes/No (Checkbox)</option>
+                      <option value="number">Number/Amount</option>
+                      <option value="date">Date</option>
+                      <option value="file">File/Certificate</option>
+                    </select>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Mandatory?</label>
+                      <input
+                        type="checkbox"
+                        checked={newRequirement.is_mandatory}
+                        onChange={(e) => setNewRequirement({...newRequirement, is_mandatory: e.target.checked})}
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label>Weight (1-10)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="10"
+                        value={newRequirement.weight}
+                        onChange={(e) => setNewRequirement({...newRequirement, weight: parseInt(e.target.value)})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="cancel-btn" onClick={() => setShowRequirementForm(false)}>
+                      Cancel
+                    </button>
+                    <button 
+                      className="save-btn"
+                      onClick={async () => {
+                        await supabase
+                          .from('requirement_templates')
+                          .insert({
+                            company_id: company.id,
+                            ...newRequirement
+                          });
+                        setShowRequirementForm(false);
+                        setNewRequirement({
+                          category_id: '',
+                          name: '',
+                          description: '',
+                          rule_type: 'text',
+                          is_mandatory: true,
+                          weight: 1
+                        });
+                        loadRequirements();
+                      }}
+                      disabled={!newRequirement.category_id || !newRequirement.name}
+                    >
+                      Create Requirement
+                    </button>
+                  </div>
+                </div>
               </div>
+            )}
+
+            {/* Requirements Grid */}
+            <div className="requirements-grid">
+              {requirements.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">⚙️</div>
+                  <h3>No requirements yet</h3>
+                  <p>Create requirements that bidders must comply with</p>
+                </div>
+              ) : (
+                requirements.map(req => (
+                  <div key={req.id} className="requirement-card">
+                    <div className="requirement-header">
+                      <span className="category-icon">{req.category?.icon || '📋'}</span>
+                      <h4>{req.name}</h4>
+                    </div>
+                    <p className="requirement-description">{req.description}</p>
+                    <div className="requirement-meta">
+                      <span className="requirement-type">{req.rule_type}</span>
+                      <span className={`badge ${req.is_mandatory ? 'mandatory' : 'optional'}`}>
+                        {req.is_mandatory ? 'Mandatory' : 'Optional'}
+                      </span>
+                      <span className="requirement-weight">Weight: {req.weight}</span>
+                    </div>
+                    <div className="requirement-actions">
+                      <button className="icon-btn">✏️</button>
+                      <button className="icon-btn">🗑️</button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
