@@ -634,6 +634,7 @@ const viewRequirements = async (tenderId) => {
   );
 }
 
+
 // Main App Component
 function App() {
   const [session, setSession] = useState(null);
@@ -722,7 +723,7 @@ function App() {
     );
   }
 
-  return (
+ return (
     <Dashboard 
       user={session.user} 
       company={company}
@@ -730,7 +731,6 @@ function App() {
       onSetupClick={handleSetupClick}
     />
   );
-}
+} // <-- THIS BRACE WAS MISSING!
 
-// ✅ THIS IS THE CRITICAL LINE YOU WERE MISSING!
 export default App;
