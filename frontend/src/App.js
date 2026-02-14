@@ -542,8 +542,8 @@ const viewRequirements = async (tenderId) => {
             Upload Tender
           </button>
         </div>
-      ) : (
-        {tenders.map(tender => (
+  ) : (
+  tenders.map(tender => (
   <div key={tender.id} className="tender-card">
     <div className="tender-icon">📄</div>
     <div className="tender-info">
@@ -557,7 +557,6 @@ const viewRequirements = async (tenderId) => {
       </div>
     </div>
     <div className="tender-actions">
-      {/* 🔍 Analysis Button - This will show requirements */}
       <button 
         className="icon-btn" 
         onClick={() => viewRequirements(tender.id)}
@@ -565,15 +564,12 @@ const viewRequirements = async (tenderId) => {
       >
         🔍
       </button>
-      
-      {/* ✏️ Edit Button */}
       <button className="icon-btn" title="Edit Tender">✏️</button>
-      
-      {/* 📋 Copy Button */}
       <button className="icon-btn" title="Duplicate">📋</button>
     </div>
   </div>
-))}
+))
+)}
 
         {/* TEAM TAB */}
         {activeTab === 'team' && (
