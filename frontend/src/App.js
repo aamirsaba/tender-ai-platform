@@ -158,6 +158,28 @@ useEffect(() => {
     setRequirements(data || []);
   };
 
+// Add this after your other functions
+const applyRequirementsToTender = async (tenderId) => {
+  // Get all requirements for this company
+  const { data: requirements } = await supabase
+    .from('requirement_templates')
+    .select('*')
+    .eq('company_id', company.id);
+  
+  // Create tender_requirements entries
+  const tenderRequirements = requirements.map(req => ({
+    tender_id: tenderId,
+    template_id: req.id,
+    status: 'pending'
+  }));
+  
+  await supabase.from('tender_requirements').insert(tenderRequirements);
+  
+  alert(`Applied ${requirements.length} requirements to tender`);
+};
+
+
+
   const loadTenders = async () => {
     const { data } = await supabase
       .from('tenders')
@@ -257,6 +279,7 @@ useEffect(() => {
       alert('Error loading requirements');
     }
   };
+
 
   return (
     <div className="app">
@@ -855,31 +878,37 @@ useEffect(() => {
                 </div>
               ) : (
                 tenders.map(tender => (
-                  <div key={tender.id} className="tender-card">
-                    <div className="tender-icon">📄</div>
-                    <div className="tender-info">
-                      <h4>{tender.title}</h4>
-                      <p>Template: {tender.templates?.name || 'None'}</p>
-                      <div className="tender-meta">
-                        <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
-                        <span className={`status-badge ${tender.status}`}>
-                          {tender.status}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="tender-actions">
-                      <button 
-                        className="icon-btn" 
-                        onClick={() => viewRequirements(tender.id)}
-                        title="View Requirements"
-                      >
-                        🔍
-                      </button>
-                      <button className="icon-btn" title="Edit Tender">✏️</button>
-                      <button className="icon-btn" title="Duplicate">📋</button>
-                    </div>
-                  </div>
-                ))
+  <div key={tender.id} className="tender-card">
+    <div className="tender-icon">📄</div>
+    <div className="tender-info">
+      <h4>{tender.title}</h4>
+      <p>Template: {tender.templates?.name || 'None'}</p>
+      <div className="tender-meta">
+        <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
+        <span className={`status-badge ${tender.status}`}>
+          {tender.status}
+        </span>
+      </div>
+    </div>
+    <div className="tender-actions">
+      <button 
+  className="icon-btn" 
+  onClick={() => {
+    if (window.confirm('Apply all requirements to this tender?')) {
+      applyRequirementsToTender(tender.id);
+    } else {
+      viewRequirements(tender.id);
+    }
+  }}
+  title="View/Apply Requirements"
+>
+  🔍
+</button>
+      <button className="icon-btn" title="Edit Tender">✏️</button>
+      <button className="icon-btn" title="Duplicate">📋</button>
+    </div>
+  </div>
+))
               )}
             </div>
           </div>
