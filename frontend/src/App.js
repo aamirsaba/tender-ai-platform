@@ -446,6 +446,38 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
               )}
             </div>
           </div>
+        {/* REQUIREMENTS TAB - ADD THIS SECTION */}
+        {activeTab === 'requirements' && (
+          <div className="requirements-tab">
+            <div className="tab-header">
+              <h2>⚙️ Requirement Categories</h2>
+              <button className="create-btn">+ New Category</button>
+            </div>
+
+            <div className="categories-grid">
+              <div className="empty-state">
+                <div className="empty-icon">📋</div>
+                <h3>No categories yet</h3>
+                <p>Create requirement categories to organize your rules (e.g., Technical, Commercial, HSSE, ICV)</p>
+                <button className="create-first-btn">Create Category</button>
+              </div>
+            </div>
+
+            <div className="tab-header" style={{ marginTop: '40px' }}>
+              <h2>📋 Requirement Templates</h2>
+              <button className="create-btn">+ New Requirement</button>
+            </div>
+
+            <div className="requirements-grid">
+              <div className="empty-state">
+                <div className="empty-icon">⚙️</div>
+                <h3>No requirements yet</h3>
+                <p>Create requirements that bidders must comply with</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         )}
 
         {/* TENDERS TAB */}
