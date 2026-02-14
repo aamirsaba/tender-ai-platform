@@ -73,7 +73,7 @@ function SimpleAuth({ onLogin }) {
   );
 }
 
-function Dashboard({ user, company, onLogout }) {
+function Dashboard({ user, company, onLogout, onSetupClick }) {
   return (
     <div className="app">
       <header className="header">
@@ -99,8 +99,8 @@ function Dashboard({ user, company, onLogout }) {
         {!company && (
           <div className="setup-prompt">
             <p>You haven't created a company yet.</p>
-            <button onClick={() => window.location.reload()}>
-              Set Up Company
+            <button onClick={onSetupClick} className="setup-btn">
+              Set Up Company Now
             </button>
           </div>
         )}
@@ -117,17 +117,14 @@ function App() {
   const [showSetup, setShowSetup] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) loadUserProfile(session.user);
-      else setLoading(false);
-    });
-
+    checkUser();
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
         setSession(session);
-        if (session) await loadUserProfile(session.user);
-        else {
+        if (session) {
+          await loadUserProfile(session.user);
+        } else {
           setProfile(null);
           setCompany(null);
           setLoading(false);
@@ -138,30 +135,44 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
+  const checkUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+    if (session) {
+      await loadUserProfile(session.user);
+    } else {
+      setLoading(false);
+    }
+  };
+
   const loadUserProfile = async (user) => {
     setLoading(true);
     
     // Get profile with company
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select(`
         *,
         companies (*)
       `)
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
     
     if (profile) {
       setProfile(profile);
       setCompany(profile.companies);
-      
-      // If user has no company, show setup
-      if (!profile.companies) {
-        setShowSetup(true);
-      }
     }
     
     setLoading(false);
+  };
+
+  const handleSetupClick = () => {
+    setShowSetup(true);
+  };
+
+  const handleSetupComplete = (newCompany) => {
+    setCompany(newCompany);
+    setShowSetup(false);
   };
 
   if (loading) {
@@ -176,10 +187,7 @@ function App() {
     return (
       <CompanySetup 
         user={session.user} 
-        onComplete={(newCompany) => {
-          setCompany(newCompany);
-          setShowSetup(false);
-        }}
+        onComplete={handleSetupComplete}
       />
     );
   }
@@ -189,6 +197,7 @@ function App() {
       user={session.user} 
       company={company}
       onLogout={() => supabase.auth.signOut()}
+      onSetupClick={handleSetupClick}
     />
   );
 }
