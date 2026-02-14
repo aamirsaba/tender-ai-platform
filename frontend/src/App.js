@@ -98,12 +98,12 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     file: null
   });
 
- useEffect(() => {
-  if (company) {
-    loadTemplates();
-    loadTenders();
-  }
-}, [company, loadTemplates, loadTenders]); // Add dependencies
+  useEffect(() => {
+    if (company) {
+      loadTemplates();
+      loadTenders();
+    }
+  }, [company]);
 
   const loadTemplates = async () => {
     const { data } = await supabase
@@ -228,49 +228,47 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
             <button onClick={onLogout} className="logout-btn">Logout</button>
           </div>
         </div>
-        
-   
-        {/* Navigation Tabs */}
-        <div className="dashboard-tabs">
-          <button 
-            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
-            onClick={() => setActiveTab('overview')}
-          >
-            📊 Overview
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'templates' ? 'active' : ''}`}
-            onClick={() => setActiveTab('templates')}
-          >
-            📋 Templates
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'tenders' ? 'active' : ''}`}
-            onClick={() => setActiveTab('tenders')}
-          >
-            📄 Tenders
-          </button>
-          {/* REQUIREMENTS BUTTON - ADDED HERE */}
-          <button 
-            className={`tab-btn ${activeTab === 'requirements' ? 'active' : ''}`}
-            onClick={() => setActiveTab('requirements')}
-          >
-            ⚙️ Requirements
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'team' ? 'active' : ''}`}
-            onClick={() => setActiveTab('team')}
-          >
-            👥 Team
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settings')}
-          >
-            ⚙️ Settings
-          </button>
-        </div>
+      </header>
 
+      {/* Navigation Tabs */}
+      <div className="dashboard-tabs">
+        <button 
+          className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+          onClick={() => setActiveTab('overview')}
+        >
+          📊 Overview
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => setActiveTab('templates')}
+        >
+          📋 Templates
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'tenders' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tenders')}
+        >
+          📄 Tenders
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'requirements' ? 'active' : ''}`}
+          onClick={() => setActiveTab('requirements')}
+        >
+          ⚙️ Requirements
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'team' ? 'active' : ''}`}
+          onClick={() => setActiveTab('team')}
+        >
+          👥 Team
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          ⚙️ Settings
+        </button>
+      </div>
 
       <div className="dashboard-content">
         {/* OVERVIEW TAB */}
