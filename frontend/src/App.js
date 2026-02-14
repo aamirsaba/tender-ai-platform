@@ -443,10 +443,12 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
                     </div>
                   </div>
                 ))
-              )}
+              ))}
             </div>
           </div>
-        {/* REQUIREMENTS TAB - ADD THIS SECTION */}
+        )}
+
+        {/* REQUIREMENTS TAB */}
         {activeTab === 'requirements' && (
           <div className="requirements-tab">
             <div className="tab-header">
@@ -476,8 +478,6 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
               </div>
             </div>
           </div>
-        )}
-
         )}
 
         {/* TENDERS TAB */}
