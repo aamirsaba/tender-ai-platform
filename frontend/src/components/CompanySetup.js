@@ -9,6 +9,7 @@ export default function CompanySetup({ onComplete, user }) {
     industry: '',
     size: ''
   });
+  const [slugAvailable, setSlugAvailable] = useState(true);
 
   const generateSlug = (name) => {
     return name
@@ -18,19 +19,46 @@ export default function CompanySetup({ onComplete, user }) {
   };
 
   const checkSlugAvailability = async (slug) => {
-    const { data } = await supabase
+    if (!slug) return false;
+    const { data, error } = await supabase
       .from('companies')
       .select('slug')
       .eq('slug', slug)
-      .single();
+      .maybeSingle();
     
     return !data;
+  };
+
+  const handleNameChange = async (e) => {
+    const name = e.target.value;
+    const slug = generateSlug(name);
+    const available = await checkSlugAvailability(slug);
+    
+    setCompanyData({
+      ...companyData,
+      name,
+      slug
+    });
+    setSlugAvailable(available);
+  };
+
+  const handleSlugChange = async (e) => {
+    const slug = generateSlug(e.target.value);
+    const available = await checkSlugAvailability(slug);
+    
+    setCompanyData({
+      ...companyData,
+      slug
+    });
+    setSlugAvailable(available);
   };
 
   const handleCreateCompany = async () => {
     setLoading(true);
     
     try {
+      console.log('1. Creating company with data:', companyData);
+      
       // 1. Create company
       const { data: company, error: companyError } = await supabase
         .from('companies')
@@ -45,7 +73,12 @@ export default function CompanySetup({ onComplete, user }) {
         .select()
         .single();
 
-      if (companyError) throw companyError;
+      if (companyError) {
+        console.error('Company creation error:', companyError);
+        throw companyError;
+      }
+      
+      console.log('2. Company created:', company);
 
       // 2. Update user profile with company_id
       const { error: profileError } = await supabase
@@ -53,13 +86,18 @@ export default function CompanySetup({ onComplete, user }) {
         .update({ company_id: company.id })
         .eq('id', user.id);
 
-      if (profileError) throw profileError;
-
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        throw profileError;
+      }
+      
+      console.log('3. Profile updated successfully');
+      
       onComplete(company);
       
     } catch (error) {
-      console.error('Setup error:', error);
-      alert('Error setting up company. Please try again.');
+      console.error('Setup error details:', error);
+      alert('Error setting up company: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -76,17 +114,7 @@ export default function CompanySetup({ onComplete, user }) {
           <input
             type="text"
             value={companyData.name}
-            onChange={async (e) => {
-              const name = e.target.value;
-              const slug = generateSlug(name);
-              const available = await checkSlugAvailability(slug);
-              setCompanyData({
-                ...companyData,
-                name,
-                slug,
-                slugAvailable: available
-              });
-            }}
+            onChange={handleNameChange}
             placeholder="e.g., Oman LNG"
             required
           />
@@ -99,22 +127,14 @@ export default function CompanySetup({ onComplete, user }) {
             <input
               type="text"
               value={companyData.slug}
-              onChange={async (e) => {
-                const slug = generateSlug(e.target.value);
-                const available = await checkSlugAvailability(slug);
-                setCompanyData({
-                  ...companyData,
-                  slug,
-                  slugAvailable: available
-                });
-              }}
+              onChange={handleSlugChange}
               placeholder="your-company"
             />
             <span>.tenderai.com</span>
           </div>
           {companyData.slug && (
-            <small className={companyData.slugAvailable ? 'available' : 'taken'}>
-              {companyData.slugAvailable ? '✓ Available' : '✗ Not available'}
+            <small className={slugAvailable ? 'available' : 'taken'}>
+              {slugAvailable ? '✓ Available' : '✗ Not available'}
             </small>
           )}
         </div>
@@ -151,7 +171,7 @@ export default function CompanySetup({ onComplete, user }) {
         <button 
           className="create-btn"
           onClick={handleCreateCompany}
-          disabled={loading || !companyData.name || !companyData.slug || !companyData.slugAvailable}
+          disabled={loading || !companyData.name || !companyData.slug || !slugAvailable}
         >
           {loading ? 'Creating...' : '🚀 Create Workspace'}
         </button>
