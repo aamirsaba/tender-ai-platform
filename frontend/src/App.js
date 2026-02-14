@@ -443,7 +443,7 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
                     </div>
                   </div>
                 ))
-              ))
+              ))}
             </div>
           </div>
         )}
