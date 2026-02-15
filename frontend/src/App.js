@@ -215,6 +215,10 @@ const sendInvitation = async () => {
   const token = Math.random().toString(36).substring(2, 15) + 
                 Math.random().toString(36).substring(2, 15);
   
+  // Calculate expiry date (7 days from now)
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 7);
+  
   const { error } = await supabase
     .from('invitations')
     .insert({
@@ -222,11 +226,13 @@ const sendInvitation = async () => {
       email: inviteEmail,
       role: inviteRole,
       invited_by: user.id,
-      token: token
+      token: token,
+      expires_at: expiresAt.toISOString()  // Explicitly set the expiry
     });
 
   if (error) {
     alert('Error sending invitation: ' + error.message);
+    console.error('Invitation error:', error);
   } else {
     setShowInviteForm(false);
     setInviteEmail('');
