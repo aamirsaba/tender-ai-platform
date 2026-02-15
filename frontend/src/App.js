@@ -74,7 +74,6 @@ function SimpleAuth({ onLogin }) {
   );
 }
 
-// Dashboard Component
 function Dashboard({ user, company, onLogout, onSetupClick }) {
   const [activeTab, setActiveTab] = useState('overview');
   const [templates, setTemplates] = useState([]);
@@ -87,25 +86,24 @@ function Dashboard({ user, company, onLogout, onSetupClick }) {
     variables: []
   });
 
-// Category and Requirement states
-const [categories, setCategories] = useState([]);
-const [requirements, setRequirements] = useState([]);
-const [showCategoryForm, setShowCategoryForm] = useState(false);
-const [showRequirementForm, setShowRequirementForm] = useState(false);
-const [newCategory, setNewCategory] = useState({
-  name: '',
-  icon: '📋',
-  color: '#667eea'
-});
-const [newRequirement, setNewRequirement] = useState({
-  category_id: '',
-  name: '',
-  description: '',
-  rule_type: 'text',
-  is_mandatory: true,
-  weight: 1
-});
-
+  // Category and Requirement states
+  const [categories, setCategories] = useState([]);
+  const [requirements, setRequirements] = useState([]);
+  const [showCategoryForm, setShowCategoryForm] = useState(false);
+  const [showRequirementForm, setShowRequirementForm] = useState(false);
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    icon: '📋',
+    color: '#667eea'
+  });
+  const [newRequirement, setNewRequirement] = useState({
+    category_id: '',
+    name: '',
+    description: '',
+    rule_type: 'text',
+    is_mandatory: true,
+    weight: 1
+  });
 
   // Tender states
   const [tenders, setTenders] = useState([]);
@@ -118,15 +116,23 @@ const [newRequirement, setNewRequirement] = useState({
     file: null
   });
 
-useEffect(() => {
-  if (company) {
-    loadTemplates();
-    loadTenders();
-    loadCategories();    // ADD THIS
-    loadRequirements();  // ADD THIS
-  }
-}, [company]);
+  // TEAM STATES - ADD THESE LINES
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [invitations, setInvitations] = useState([]);
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('member');
 
+  useEffect(() => {
+    if (company) {
+      loadTemplates();
+      loadTenders();
+      loadCategories();
+      loadRequirements();
+      loadTeamMembers();    // Add this later
+      loadInvitations();    // Add this later
+    }
+  }, [company]);
 
   const loadTemplates = async () => {
     const { data } = await supabase
@@ -176,6 +182,97 @@ const applyRequirementsToTender = async (tenderId) => {
   await supabase.from('tender_requirements').insert(tenderRequirements);
   
   alert(`Applied ${requirements.length} requirements to tender`);
+};
+
+// Load team members
+const loadTeamMembers = async () => {
+  const { data } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('company_id', company.id);
+  
+  setTeamMembers(data || []);
+};
+
+// Load pending invitations
+const loadInvitations = async () => {
+  const { data } = await supabase
+    .from('invitations')
+    .select('*')
+    .eq('company_id', company.id)
+    .is('accepted_at', null);
+  
+  setInvitations(data || []);
+};
+
+// Send invitation
+const sendInvitation = async () => {
+  if (!inviteEmail) {
+    alert('Please enter an email address');
+    return;
+  }
+
+  const token = Math.random().toString(36).substring(2, 15) + 
+                Math.random().toString(36).substring(2, 15);
+  
+  const { error } = await supabase
+    .from('invitations')
+    .insert({
+      company_id: company.id,
+      email: inviteEmail,
+      role: inviteRole,
+      invited_by: user.id,
+      token: token
+    });
+
+  if (error) {
+    alert('Error sending invitation: ' + error.message);
+  } else {
+    setShowInviteForm(false);
+    setInviteEmail('');
+    setInviteRole('member');
+    loadInvitations();
+    
+    // In production, you'd send an email here
+    alert(`✅ Invitation sent! Share this link with ${inviteEmail}:\n\nhttps://tender-ai-frontend.onrender.com/accept-invite?token=${token}`);
+  }
+};
+
+// Accept invitation (for the accept page)
+const acceptInvitation = async (token) => {
+  const { data: invitation, error: fetchError } = await supabase
+    .from('invitations')
+    .select('*')
+    .eq('token', token)
+    .single();
+  
+  if (fetchError || !invitation) {
+    alert('Invalid or expired invitation');
+    return;
+  }
+
+  // Update user's profile with company_id
+  const { error: updateError } = await supabase
+    .from('profiles')
+    .update({ 
+      company_id: invitation.company_id,
+      role: invitation.role 
+    })
+    .eq('id', user.id);
+
+  if (updateError) {
+    alert('Error accepting invitation: ' + updateError.message);
+  } else {
+    // Mark invitation as accepted
+    await supabase
+      .from('invitations')
+      .update({ accepted_at: new Date() })
+      .eq('id', invitation.id);
+    
+    alert('✅ You are now a member of the company!');
+    // Refresh the page to load new company data
+    window.location.reload();
+  }
 };
 
 
@@ -919,57 +1016,123 @@ const applyRequirementsToTender = async (tenderId) => {
           <div className="team-tab">
             <div className="tab-header">
               <h2>👥 Team Members</h2>
-              <button className="create-btn">+ Invite Member</button>
-            </div>
-            <div className="team-list">
-              <div className="team-member">
-                <div className="member-avatar">👤</div>
-                <div className="member-info">
-                  <h4>{user.email}</h4>
-                  <p>Admin · You</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && (
-          <div className="settings-tab">
-            <h2>⚙️ Company Settings</h2>
-            
-            <div className="settings-section">
-              <h3>Company Information</h3>
-              <div className="settings-grid">
-                <div className="setting-item">
-                  <label>Company Name</label>
-                  <p>{company?.name}</p>
-                </div>
-                <div className="setting-item">
-                  <label>Company URL</label>
-                  <p>{company?.slug}.tenderai.com</p>
-                </div>
-                <div className="setting-item">
-                  <label>Industry</label>
-                  <p>{company?.industry || 'Not set'}</p>
-                </div>
-                <div className="setting-item">
-                  <label>Size</label>
-                  <p>{company?.size || 'Not set'}</p>
-                </div>
-              </div>
+              <button 
+                className="create-btn"
+                onClick={() => setShowInviteForm(true)}
+              >
+                + Invite Member
+              </button>
             </div>
 
-            <div className="settings-section">
-              <h3>Subscription</h3>
-              <div className="subscription-card">
-                <div className="plan-info">
-                  <h4>{company?.subscription_tier || 'Trial'} Plan</h4>
-                  <p>Expires: {new Date(company?.trial_ends_at).toLocaleDateString()}</p>
+            {/* Invite Form Modal */}
+            {showInviteForm && (
+              <div className="modal">
+                <div className="modal-content">
+                  <h3>Invite Team Member</h3>
+                  
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input
+                      type="email"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                      placeholder="colleague@company.com"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>Role</label>
+                    <select
+                      value={inviteRole}
+                      onChange={(e) => setInviteRole(e.target.value)}
+                    >
+                      <option value="admin">Admin</option>
+                      <option value="member">Member</option>
+                      <option value="viewer">Viewer</option>
+                    </select>
+                  </div>
+
+                  <div className="form-actions">
+                    <button className="cancel-btn" onClick={() => setShowInviteForm(false)}>
+                      Cancel
+                    </button>
+                    <button 
+                      className="save-btn"
+                      onClick={sendInvitation}
+                      disabled={!inviteEmail}
+                    >
+                      Send Invitation
+                    </button>
+                  </div>
                 </div>
-                <button className="upgrade-btn">Upgrade Plan</button>
+              </div>
+            )}
+
+            {/* Team Members List */}
+            <div className="team-section">
+              <h3>Current Members</h3>
+              <div className="team-list">
+                {teamMembers.length === 0 ? (
+                  <p className="no-data">No team members yet</p>
+                ) : (
+                  teamMembers.map(member => (
+                    <div key={member.id} className="team-member-card">
+                      <div className="member-avatar">
+                        {member.avatar_url ? (
+                          <img src={member.avatar_url} alt={member.email} />
+                        ) : (
+                          <div className="avatar-placeholder">
+                            {member.email?.[0].toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="member-details">
+                        <h4>{member.email}</h4>
+                        <p className="member-role">{member.role}</p>
+                        {member.id === user.id && (
+                          <span className="you-badge">You</span>
+                        )}
+                      </div>
+                      {member.id !== user.id && (
+                        <button className="icon-btn">⚙️</button>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
+
+            {/* Pending Invitations */}
+            {invitations.length > 0 && (
+              <div className="team-section">
+                <h3>Pending Invitations</h3>
+                <div className="invitations-list">
+                  {invitations.map(invite => (
+                    <div key={invite.id} className="invitation-card">
+                      <div className="invitation-details">
+                        <span className="invite-email">{invite.email}</span>
+                        <span className="invite-role">{invite.role}</span>
+                        <span className="invite-expiry">
+                          Expires: {new Date(invite.expires_at).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <button 
+                        className="icon-btn"
+                        onClick={async () => {
+                          await supabase
+                            .from('invitations')
+                            .delete()
+                            .eq('id', invite.id);
+                          loadInvitations();
+                        }}
+                      >
+                        ❌
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
