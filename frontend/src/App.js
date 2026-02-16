@@ -3,6 +3,9 @@ import { supabase } from './lib/supabase';
 import CompanySetup from './components/CompanySetup';
 import './App.css';
 
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import AcceptInvite from './AcceptInvite';
+
 // Simple Auth Component
 function SimpleAuth({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -1234,13 +1237,21 @@ function App() {
     );
   }
 
-  return (
-    <Dashboard 
-      user={session.user} 
-      company={company}
-      onLogout={() => supabase.auth.signOut()}
-      onSetupClick={handleSetupClick}
-    />
+   return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={
+          <Dashboard 
+            user={session.user} 
+            company={company}
+            onLogout={() => supabase.auth.signOut()}
+            onSetupClick={handleSetupClick}
+          />
+        } />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
